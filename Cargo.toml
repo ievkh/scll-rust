@@ -23,7 +23,7 @@ edition = "2021"
 rust-version = "1.81"
 license = "MIT OR Apache-2.0"          # PDD front-matter: MIT/Apache-2.0 dual
 authors = ["Ievgen <io.github.ievkh>"]
-repository = "https://github.com/ievkh/scll"
+repository = "https://github.com/ievkh/scll-rust"
 keywords = ["globalplatform", "javacard", "scp03", "scp02", "smartcard"]
 categories = ["cryptography", "hardware-support"]
 
@@ -42,11 +42,11 @@ scll-transport-jcsim = { path = "crates/scll-transport-jcsim", version = "1.0.0"
 # so it never enters a production or no_std build graph (Cargo: dev-dependencies
 # are not used when compiling a package for normal builds and are not
 # propagated to dependents).
-scll-test-util = { path = "crates/scll-test-util", version = "1.0.0" }
+scll-test-util = { path = "crates/scll-test-util" }
 # Std, dev-only test harness (MockTransport, …). Like scll-test-util, used
 # solely via `[dev-dependencies]`, so it never enters a production or no_std
 # build graph. Unlike scll-test-util it is `std` (owns scripted/recorded traces).
-scll-test-support = { path = "crates/scll-test-support", version = "1.0.0" }
+scll-test-support = { path = "crates/scll-test-support" }
 # Property-based testing (§2.4 / §10.4): TLV round-trip, Aid, life-cycle SM,
 # SW map. Dev-only (runs under cfg(test), where the crate is built with std),
 # so it never enters the no_std/production build graph.
