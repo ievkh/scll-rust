@@ -16,7 +16,7 @@ members = [
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 # Bumped to 1.81: core::error::Error (error_in_core) is stable from 1.81, which
 # is what lets `thiserror` derive work under no_std (default-features = false).
@@ -35,10 +35,10 @@ categories = ["cryptography", "hardware-support"]
 # so every shared lib below is pinned `default-features = false`. The std-only
 # transport crates (pcsc/jcsim) bring their own std deps in their manifests.
 [workspace.dependencies]
-scll-core = { path = "crates/scll-core", version = "1.0.0" }
-scll-backend-rustcrypto = { path = "crates/scll-backend-rustcrypto", version = "1.0.0" }
-scll-transport-pcsc = { path = "crates/scll-transport-pcsc", version = "1.0.0" }
-scll-transport-jcsim = { path = "crates/scll-transport-jcsim", version = "1.0.0" }
+scll-core = { path = "crates/scll-core", version = "1.0.1" }
+scll-backend-rustcrypto = { path = "crates/scll-backend-rustcrypto", version = "1.0.1" }
+scll-transport-pcsc = { path = "crates/scll-transport-pcsc", version = "1.0.1" }
+scll-transport-jcsim = { path = "crates/scll-transport-jcsim", version = "1.0.1" }
 # Test-only helper crate (HexSlice, …). Used solely via `[dev-dependencies]`,
 # so it never enters a production or no_std build graph (Cargo: dev-dependencies
 # are not used when compiling a package for normal builds and are not

@@ -436,7 +436,7 @@ dependencies = [
 
 [[package]]
 name = "scll"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "critical-section",
  "heapless",
@@ -450,7 +450,7 @@ dependencies = [
 
 [[package]]
 name = "scll-backend-rustcrypto"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "aes",
  "cbc",
@@ -467,7 +467,7 @@ dependencies = [
 
 [[package]]
 name = "scll-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "heapless",
  "miniz_oxide",
@@ -480,7 +480,7 @@ dependencies = [
 
 [[package]]
 name = "scll-test-support"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "heapless",
  "scll-core",
@@ -488,11 +488,11 @@ dependencies = [
 
 [[package]]
 name = "scll-test-util"
-version = "1.0.0"
+version = "1.0.1"
 
 [[package]]
 name = "scll-transport-jcsim"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "heapless",
  "scll-core",
@@ -501,7 +501,7 @@ dependencies = [
 
 [[package]]
 name = "scll-transport-pcsc"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "heapless",
  "pcsc",

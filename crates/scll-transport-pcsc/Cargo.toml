@@ -1,5 +1,6 @@
 [package]
 name = "scll-transport-pcsc"
+readme = "README.md"
 description = "PC/SC Transport adapter for scll (Linux/host production). Implements scll-core's Transport over the `pcsc` crate. PDD §3.1/§3.2."
 version.workspace = true
 edition.workspace = true

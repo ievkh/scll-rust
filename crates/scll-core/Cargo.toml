@@ -1,5 +1,6 @@
 [package]
 name = "scll-core"
+readme = "README.md"
 description = "Core of the Simple Card Lifecycle Library: transport/backend traits, GP commands, SCP02/03 state machines, CAP parser. No concrete transport or crypto (PDD §3.1)."
 version.workspace = true
 edition.workspace = true

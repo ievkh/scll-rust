@@ -6,6 +6,19 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-19
+
+### Fixed
+- crates.io pages showed no README for any of the five published crates: the
+  packages contained no README file and the normalized manifests carried
+  `readme = false` (workspace-root `README.md` is not auto-detected by member
+  crates). Added a short per-crate `README.md` to each publishable crate and
+  an explicit `readme = "README.md"` in each `[package]` section.
+  Ref: Cargo Book, "The readme field"
+  (https://doc.rust-lang.org/cargo/reference/manifest.html#the-readme-field).
+
+## [1.0.0] - 2026-07-19 
+
 Initial consolidated state of the library (design and iteration history up to
 this point lives in the git log; the canonical design is
 [`docs/pdd.md`](docs/pdd.md), v1.0).

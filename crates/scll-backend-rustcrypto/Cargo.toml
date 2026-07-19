@@ -1,5 +1,6 @@
 [package]
 name = "scll-backend-rustcrypto"
+readme = "README.md"
 description = "Pure-Rust crypto backend for scll (shipped default). Implements KeyBackend + Scp03Backend + Scp02Backend + ExportableKeyBackend (PDD §3.3/§3.6)."
 version.workspace = true
 edition.workspace = true

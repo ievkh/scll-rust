@@ -1,5 +1,6 @@
 [package]
 name = "scll"
+readme = "README.md"
 description = "Facade crate for the Simple Card Lifecycle Library. Feature flags select transports and backend (PDD §3.1)."
 version.workspace = true
 edition.workspace = true
