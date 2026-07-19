@@ -1,0 +1,47 @@
+# Workspace cargo configuration.
+#
+# `cargo test-jcsim` runs the two integration tests that talk to a running
+# `javacard-simulator-apdu-bridge`, in one command and with the features the
+# facade smoke test needs:
+#   * scll-transport-jcsim :: connect_selects_isd          (transport round-trip)
+#   * scll               :: jcsim_open_channel_and_read_status (end-to-end)
+#
+# Both are gated on the SCLL_JCSIM_ADDR environment variable (see
+# `scll_test_util::skip_unless_jcsim!`): they auto-run when it points at a live
+# bridge and skip otherwise, so this alias is always safe to run. The end-to-end
+# `jcsim_open_channel_and_read_status` additionally needs all three of
+# SCLL_JCSIM_KEY_ENC, SCLL_JCSIM_KEY_MAC and SCLL_JCSIM_KEY_DEK (32/48/64 hex
+# each, same length — no default key); without them that test skips and only the
+# transport-level connect_selects_isd runs.
+#
+#   SCLL_JCSIM_ADDR=127.0.0.1:10000 \
+#       SCLL_JCSIM_KEY_ENC=404142434445464748494A4B4C4D4E4F \
+#       SCLL_JCSIM_KEY_MAC=404142434445464748494A4B4C4D4E4F \
+#       SCLL_JCSIM_KEY_DEK=404142434445464748494A4B4C4D4E4F \
+#       cargo test-jcsim -- --nocapture
+#
+# Without the variable set they are skipped (and a plain `cargo test --workspace`
+# already exercises connect_selects_isd, skipping it the same way).
+[alias]
+test-jcsim = "test -p scll-transport-jcsim -p scll --features scll/jcsim,scll/std"
+# `cargo test-pcsc` runs the PC/SC real-card integration tests in one command
+# with the features the facade smoke test needs:
+#   * scll-transport-pcsc :: parse_selector + error/protocol unit tests
+#                            (connect_selects_isd stays #[ignore]; hardware-only)
+#   * scll                :: pcsc_select_isd (reader only)
+#                            pcsc_open_channel_and_read_status (also needs a key)
+#
+# Both facade tests are gated on the SCLL_PCSC environment variable (see
+# `scll_test_util::skip_unless_pcsc!`): a reader-name substring with an optional
+# `@<index>` slot/disambiguator. The second additionally needs all three of
+# SCLL_PCSC_KEY_ENC, SCLL_PCSC_KEY_MAC and SCLL_PCSC_KEY_DEK (32/48/64 hex each,
+# same length — there is no SCLL_PCSC_KEY base variable and no default key). They
+# auto-run when those are set and a card is present, and skip otherwise, so this
+# alias is always safe to run.
+#
+#   SCLL_PCSC='Identiv' \
+#       SCLL_PCSC_KEY_ENC=404142434445464748494A4B4C4D4E4F \
+#       SCLL_PCSC_KEY_MAC=404142434445464748494A4B4C4D4E4F \
+#       SCLL_PCSC_KEY_DEK=404142434445464748494A4B4C4D4E4F \
+#       cargo test-pcsc -- --nocapture
+test-pcsc = "test -p scll-transport-pcsc -p scll --features scll/pcsc,scll/std"

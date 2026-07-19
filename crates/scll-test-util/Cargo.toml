@@ -1,0 +1,26 @@
+[package]
+name = "scll-test-util"
+description = "Test-only helpers shared across the scll workspace (e.g. HexSlice for hex assertion output). Pulled in only as a dev-dependency; never a normal/runtime dependency."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+# Internal helper: never published to crates.io.
+publish = false
+
+[dependencies]
+# Intentionally none: HexSlice uses only `core`, so this crate stays no_std and
+# can be consumed from the alloc-free core/backend test modules as well as the
+# std transport crates.
+
+[features]
+# Opt-in std helpers for integration tests that need process/env access (the
+# jcsim bridge gate). OFF by default so the alloc-free core/backend test modules
+# keep consuming this crate as pure `no_std`; the std transport/facade test
+# builds turn it on via their dev-dependency.
+std = []
+
+[lints]
+workspace = true

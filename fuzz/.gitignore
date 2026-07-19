@@ -1,0 +1,16 @@
+# Machine-generated, never committed:
+#   corpus/    – working corpus grown by `cargo fuzz run` (coverage-increasing inputs)
+#   artifacts/ – crash / timeout / OOM reproducers
+#   coverage/  – `cargo fuzz coverage` output
+#   target/    – build artifacts
+# Curated, read-only seed inputs live in `seeds/<target>/` and ARE tracked.
+#
+# Local fuzzing keeps the grown corpus separate from the seeds, e.g.:
+#   cargo fuzz run rapdu_unwrap fuzz/corpus/rapdu_unwrap fuzz/seeds/rapdu_unwrap
+# (first dir = writable working corpus, rest = read-only seeds). Run
+# `cargo fuzz cmin <target> fuzz/corpus/<target>` periodically to keep it small.
+/corpus/
+/artifacts/
+/coverage/
+/target/
+Cargo.lock

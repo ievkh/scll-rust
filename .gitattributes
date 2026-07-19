@@ -1,0 +1,36 @@
+# Normalize line endings: auto-detect text, store with LF in the repo.
+* text=auto eol=lf
+
+# --- Source & config (explicitly text; LF) ---
+*.rs       text eol=lf
+*.toml     text eol=lf
+*.md       text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.java     text eol=lf
+*.sh       text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+LICENSE-*        text eol=lf
+
+# --- Binary artifacts (no diff, no EOL conversion) ---
+# *.cap = Java Card CAP file (ZIP container)
+*.cap      binary
+*.zip      binary
+*.tar.gz   binary
+*.gz       binary
+*.pdf      binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+
+# Fuzz seed corpora / captured APDU traces are opaque bytes.
+fuzz/corpus/**     binary
+*.apdu             binary
+*.trace            binary
+
+# --- GitHub Linguist hints ---
+# Keep language stats focused on Rust, not the bundled spec/docs.
+docs/**            linguist-documentation
+*.md               linguist-documentation

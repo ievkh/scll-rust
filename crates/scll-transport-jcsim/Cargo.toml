@@ -1,0 +1,23 @@
+[package]
+name = "scll-transport-jcsim"
+description = "TCP Transport adapter for the Oracle Java Card simulator (bibo+tcp). Development only. PDD §3.1/§3.2."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+# std host crate (uses std::net::TcpStream), produces the converted Transport
+# trait's bounded heapless return types.
+scll-core.workspace = true
+heapless.workspace = true
+
+[dev-dependencies]
+# Shared hex `Debug` wrapper (HexSlice) plus the `SCLL_JCSIM_ADDR` gate
+# (`skip_unless_jcsim!`) — the `std` feature pulls in the env helper.
+scll-test-util = { workspace = true, features = ["std"] }
+
+[lints]
+workspace = true

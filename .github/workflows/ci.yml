@@ -1,0 +1,299 @@
+# CI per PDD §10.6 (tooling & gates).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      jcsim_addr:
+        description: "javacard-simulator-apdu-bridge address (host:port)"
+        required: false
+        default: "127.0.0.1:10000"
+      jcsim_key_enc:
+        description: "jcsim ENC key, 32/48/64 hex (set all three _enc/_mac/_dek to run the secure-channel smoke; empty = skip it)"
+        required: false
+        default: ""
+      jcsim_key_mac:
+        description: "jcsim MAC key, 32/48/64 hex (same length as the others)"
+        required: false
+        default: ""
+      jcsim_key_dek:
+        description: "jcsim DEK key, 32/48/64 hex (same length as the others)"
+        required: false
+        default: ""
+      pcsc:
+        description: "PC/SC reader selector <name-substring>[@<index>] (empty = skip)"
+        required: false
+        default: ""
+      pcsc_key_enc:
+        description: "PC/SC ENC key, 32/48/64 hex (set all three _enc/_mac/_dek to run the secure-channel test; empty = reader-only)"
+        required: false
+        default: ""
+      pcsc_key_mac:
+        description: "PC/SC MAC key, 32/48/64 hex (same length as the others)"
+        required: false
+        default: ""
+      pcsc_key_dek:
+        description: "PC/SC DEK key, 32/48/64 hex (same length as the others)"
+        required: false
+        default: ""
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      # libpcsclite for the PC/SC transport crate.
+      - run: sudo apt-get update && sudo apt-get install -y libpcsclite-dev
+      - run: cargo clippy --workspace --all-targets
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # libpcsclite for the PC/SC transport crate.
+      - run: sudo apt-get update && sudo apt-get install -y libpcsclite-dev
+      - run: cargo test --workspace
+      # SCP03 KAT suite (§10.2 / §10.6): explicitly enable the backend `std`
+      # feature so a host `critical-section` impl is registered for the
+      # interior-mutable key/session tables. (The workspace run above already
+      # covers it via the backend's dev-dependency on `critical-section/std`;
+      # this is the spec-mandated explicit invocation.)
+      - run: cargo test -p scll-backend-rustcrypto --features std
+
+  coverage:
+    # Coverage of the pure layer (PDD §10.1 item 1): TLV/CRD/CCI/'E3' parsers,
+    # APDU builders, SCP wrap/unwrap framing, CAP parser, Aid, life-cycle SM, SW
+    # mapping. A ratchet-UP line-coverage GATE since S8 (--fail-under-lines,
+    # floor = measured workspace TOTAL line %, excl. scll-test-*); the lcov
+    # artifact + text summary stay.
+    # One instrumented test run feeds two reports
+    # (`--no-report` then `cargo llvm-cov report`, so tests run once): a text
+    # summary on the run's job-summary page, and `lcov.info` as an artifact.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - run: cargo install cargo-llvm-cov --locked
+      # `--no-report` retains old build artifacts, so clean first (docs
+      # recommendation) to avoid a stale/empty merge.
+      - run: cargo llvm-cov clean --workspace
+      # Run the instrumented tests once, collecting profile data but no report.
+      - run: cargo llvm-cov --no-report -p scll-core
+      # Report 1 — machine-readable lcov, kept as a downloadable artifact.
+      # NOTE: do NOT use --remap-path-prefix here — it is disabled by default
+      # upstream because of known bugs and produces an EMPTY lcov.
+      # --ignore-filename-regex drops the dev-only test-infra crates
+      # (scll-test-support / scll-test-util) from the report — they are not part
+      # of the pure-layer (scll-core) coverage target.
+      - run: cargo llvm-cov report --lcov --output-path lcov.info --ignore-filename-regex 'scll-test-(support|util)/'
+      # Coverage GATE (PDD §10.6): fail the job if line coverage
+      # regresses below the measured floor. The number is the instrumented
+      # WORKSPACE TOTAL line % (excluding scll-test-*): a verify-s8 run measured
+      # 82.82%, so the floor is 82 — just under the measured value, leaving a
+      # small ratchet margin. Policy is ratchet-UP only (raise, never lower) as
+      # coverage improves; NOT a hard 100% — report.rs/model.rs are pure
+      # `#[derive]`/data types exercised only through higher layers, manager.rs
+      # and the transports are largely live-card/reader paths, and several
+      # workflow arms are only reachable on a real card. Stable llvm-cov flags
+      # only (--fail-under-lines); branch gating needs nightly `--branch`, so it
+      # stays report-only.
+      - run: cargo llvm-cov report --fail-under-lines 82 --ignore-filename-regex 'scll-test-(support|util)/'
+      # Make SF: paths repo-relative (e.g. crates/scll-core/src/aid.rs) so the
+      # file is viewable locally with genhtml / Coverage Gutters from the repo
+      # root. This replaces the buggy --remap-path-prefix flag.
+      - run: sed -i "s|SF:${GITHUB_WORKSPACE}/|SF:|" lcov.info
+      # Fail loudly if the report came out empty (0 bytes) rather than shipping
+      # a useless artifact; the size is also printed to the job log.
+      - run: |
+          ls -l lcov.info
+          test -s lcov.info || { echo "::error::lcov.info is empty — no coverage data (did scll-core's tests run?)"; exit 1; }
+      # Report 2 — human-readable text table on the workflow run page.
+      # `--summary-only` needs --json/--lcov/--cobertura, so the default text
+      # `report` is used here and captured into the job summary.
+      - name: Coverage summary on the run page
+        run: |
+          {
+            echo '### Coverage — scll-core'
+            echo '```text'
+            cargo llvm-cov report --ignore-filename-regex 'scll-test-(support|util)/'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: lcov.info
+          if-no-files-found: error
+      # Enforced since S8: the `--fail-under-lines` step above fails the job on
+      # a pure-layer line-coverage regression. Make this job a required status
+      # check in branch protection to block merges below the floor. (Branch
+      # coverage needs nightly `--branch`, so it remains report-only.)
+
+  deny:
+    # License/advisory policy (§10.6): no LGPL/AGPL on the dependency graph.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  fuzz-smoke:
+    # Short-budget fuzz run (§10.5). Longer scheduled jobs run separately.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install cargo-fuzz --locked
+      # `bash -e` is the default; dropping `|| true` makes any crash (libFuzzer
+      # exit 77) fail the job. cap_parser (CAP ZIP/inflate) and
+      # card_response_parsers (TLV + the §5.2/§5.12 templates) landed in S3 and
+      # gained the §5.12a multi-scope registry parser (parse_status_registry) in
+      # S7a, with a status_registry_multiscope seed added to its corpus;
+      # rapdu_unwrap went live in S4 — it opens a real SCP03 session on the
+      # RustCrypto backend and feeds the input to scp03_unwrap_response,
+      # asserting no panic and a torn-down session on failure. S8 adds
+      # scp_wrap_roundtrip (wrap/unwrap round-trip + tamper, SCP02 + SCP03
+      # S8/S16) and scp03_kdf_props (KDF/cryptogram determinism, mode length,
+      # constant separation, challenge sensitivity across AES-128/192/256).
+      # Each run replays
+      # the checked-in fuzz/seeds/<target>/ inputs (the grown working corpus
+      # under fuzz/corpus/ is git-ignored). `-runs=0` replays each seed once and
+      # exits without generating or writing new inputs, so the seed dir stays
+      # read-only here.
+      - run: |
+          for t in cap_parser card_response_parsers rapdu_unwrap scp_wrap_roundtrip scp03_kdf_props; do
+            cargo fuzz run "$t" "$PWD/fuzz/seeds/$t" -- -max_total_time=30 -runs=0
+          done
+      # A short LIVE fuzzing pass (not just seed replay) — PDD §10.6
+      # on the two hardening targets, so PRs get real mutation coverage of the
+      # wrap/unwrap and KDF paths. Crashes fail the job (libFuzzer exit 77); the
+      # scheduled `fuzz-nightly` workflow runs a much longer budget.
+      - run: |
+          for t in scp_wrap_roundtrip scp03_kdf_props; do
+            cargo fuzz run "$t" "$PWD/fuzz/seeds/$t" -- -max_total_time=60
+          done
+      # libFuzzer writes the crashing input to fuzz/artifacts/<target>/crash-*.
+      # Upload it (only on failure) so the reproducer is downloadable from the
+      # run's Artifacts section; without this step the ephemeral runner discards it.
+      - name: Upload fuzz reproducers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts
+          path: fuzz/artifacts/
+          if-no-files-found: ignore
+
+  smoke-jcsim:
+    # On-target end-to-end smoke (PDD §10.1 layer 4). MANUAL ONLY:
+    # it drives a live card through the javacard-simulator-apdu-bridge, which a
+    # GitHub-hosted runner does not have — so it runs on `workflow_dispatch`,
+    # ideally on a self-hosted runner (or a runner with the bridge exposed as a
+    # service) reachable at `SCLL_JCSIM_ADDR`. The first step compiles the smoke
+    # test on every dispatch so it cannot silently bit-rot; the second runs both
+    # jcsim integration tests against the bridge. The tests are gated on
+    # SCLL_JCSIM_ADDR (not `#[ignore]`d), so the `cargo test-jcsim` alias runs
+    # them when the address is set and skips them otherwise.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      SCLL_JCSIM_ADDR: ${{ github.event.inputs.jcsim_addr }}
+      SCLL_JCSIM_KEY_ENC: ${{ github.event.inputs.jcsim_key_enc }}
+      SCLL_JCSIM_KEY_MAC: ${{ github.event.inputs.jcsim_key_mac }}
+      SCLL_JCSIM_KEY_DEK: ${{ github.event.inputs.jcsim_key_dek }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # Compile guard (fast feedback even with no bridge present).
+      - run: cargo test -p scll --features "jcsim std" --test smoke_jcsim --no-run
+      # Run both jcsim integration tests against the bridge at SCLL_JCSIM_ADDR
+      # (transport `connect_selects_isd` + facade `jcsim_open_channel_and_read_status`).
+      - run: cargo test-jcsim -- --nocapture
+
+  smoke-pcsc:
+    # On-card end-to-end smoke over PC/SC (PDD §10.1 layer 4). MANUAL
+    # ONLY: it drives a physical reader/card, which a GitHub-hosted runner does
+    # not have — so it runs on `workflow_dispatch`, ideally on a self-hosted
+    # runner with a reader attached and `pcscd` running. The first step compiles
+    # the smoke test on every dispatch so it cannot silently bit-rot; the second
+    # runs the PC/SC integration tests. They are gated on SCLL_PCSC (reader) and
+    # the three SCLL_PCSC_KEY_ENC/_MAC/_DEK (secure-channel test only), not
+    # `#[ignore]`d, so the `cargo test-pcsc` alias runs whichever the inputs
+    # enable and skips the rest.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      SCLL_PCSC: ${{ github.event.inputs.pcsc }}
+      SCLL_PCSC_KEY_ENC: ${{ github.event.inputs.pcsc_key_enc }}
+      SCLL_PCSC_KEY_MAC: ${{ github.event.inputs.pcsc_key_mac }}
+      SCLL_PCSC_KEY_DEK: ${{ github.event.inputs.pcsc_key_dek }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # libpcsclite for the PC/SC transport crate.
+      - run: sudo apt-get update && sudo apt-get install -y libpcsclite-dev
+      # Compile guard (fast feedback even with no reader present).
+      - run: cargo test -p scll --features "pcsc std" --test smoke_pcsc --no-run
+      # Run the PC/SC integration tests against the reader named in SCLL_PCSC
+      # (reader-only `pcsc_select_isd` + key-gated `pcsc_open_channel_and_read_status`).
+      - run: cargo test-pcsc -- --nocapture
+
+  msrv:
+    # Exit gate (PDD §10.6): the crate builds and tests on its pinned
+    # MSRV (1.81, PDD §10.6). Modern transitive deps increasingly ship
+    # edition-2024 manifests (MSRV 1.85+) that a bare `cargo +1.81` cannot even
+    # PARSE, and this repo git-ignores Cargo.lock — so a fresh 1.81 resolve
+    # grabs newest-everything and fails on the first such dep (zeroize 1.9,
+    # getrandom 0.4, ...). Fix: resolve the dependency graph with a *stable*
+    # cargo under the MSRV-aware resolver (CARGO_RESOLVER_INCOMPATIBLE_RUST_
+    # VERSIONS=fallback picks versions compatible with rust-version = 1.81),
+    # writing Cargo.lock, then build+test with the 1.81 toolchain `--locked` so
+    # it consumes exactly that graph and never re-resolves. This is
+    # dep-agnostic: future edition-2024 deps are handled automatically without
+    # per-crate version caps.
+    runs-on: ubuntu-latest
+    env:
+      CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.81.0
+      - run: sudo apt-get update && sudo apt-get install -y libpcsclite-dev
+      # Resolve with STABLE cargo + the MSRV-aware fallback resolver.
+      - run: cargo +stable generate-lockfile
+      # Build/test with the PINNED toolchain against that locked graph.
+      - run: cargo +1.81.0 build --workspace --locked
+      - run: cargo +1.81.0 test  --workspace --locked
+
+  no-std:
+    # Exit gate (PDD §10.6): confirm scll-core and
+    # scll-backend-rustcrypto build as `#![no_std]` for a bare-metal target.
+    # A default `thumbv7em-none-eabi` build (no std, no alloc runtime) fails to
+    # compile if anything pulled `std` into the production graph. Only the two
+    # no_std crates are built; transports/facade/examples are std by design.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabi
+      - run: cargo build -p scll-core -p scll-backend-rustcrypto --no-default-features --target thumbv7em-none-eabi

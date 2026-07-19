@@ -1,0 +1,70 @@
+[package]
+name = "scll-pcsc-example"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.81"
+description = "scll demos (card-info, ssd-lifecycle, isd-lifecycle): CardManager workflows against a real JavaCard (PC/SC) or the Oracle JCDK simulator (jcsim)."
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Empty `[workspace]` table => this crate is its OWN workspace root, detached
+# from the parent scll workspace. It builds and runs independently
+# (`cargo build`/`cargo run` from this directory), per the requirement that the
+# example not be part of the library workspace.
+[workspace]
+
+[dependencies]
+# Default backend (RustCrypto) is on by default; add both transports and the
+# host `std` feature (registers the backend's critical-section impl).
+scll = { path = "../crates/scll", features = ["pcsc", "jcsim", "std"] }
+
+# A real OS CSPRNG for the SCP host challenge (RustCryptoBackend is generic over
+# `R: RngCore + CryptoRng`). Must be the same rand_core 0.x line the backend uses.
+rand_core = { version = "0.6", features = ["getrandom"] }
+
+# Named in TracingTransport's `Transport` impl signature (the trait's
+# `transmit` return type is `heapless::Vec<u8, RAPDU_MAX>`). Version pinned to
+# match the parent workspace (see ../Cargo.toml); this crate is a detached
+# workspace so it cannot inherit that value.
+heapless = { version = "0.8", default-features = false }
+
+# Shared plumbing (config/env, transport selection + tracing, channel and
+# printing helpers) used by the demo binaries below.
+[lib]
+name = "scll_examples"
+path = "src/lib.rs"
+
+# Read-only: probe, discover, get card status, get card inventory.
+[[bin]]
+name = "card-info"
+path = "src/bin/card-info.rs"
+
+# Card life-cycle: read state, host-side no-op / illegal-transition /
+# TERMINATED refusals (no APDU), opt-in OP_READY→INITIALIZED (jcsim only).
+[[bin]]
+name = "card-status"
+path = "src/bin/card-status.rs"
+
+# Host-only key-backend demo: clear_len, KCV known answers,
+# generate/export/import round-trips, ExportedKey zeroize, random_bytes.
+[[bin]]
+name = "key-tools"
+path = "src/bin/key-tools.rs"
+
+# Workflow FREE functions with explicit ScpSession threading (no_std-style
+# usage), plus the manager accessors (transport/transport_mut/into_parts).
+[[bin]]
+name = "workflow-free"
+path = "src/bin/workflow-free.rs"
+
+# SSD workflow: create SSD → personalize → load/install applet → keyset
+# rotation → applet APDUs → teardown (the original end-to-end example).
+[[bin]]
+name = "ssd-lifecycle"
+path = "src/bin/ssd-lifecycle.rs"
+
+# ISD workflow: load/install applet under the ISD → ISD keyset rotation
+# (Add 0x30 → verify → Add 0x31 → verify) → keyset removal → teardown.
+[[bin]]
+name = "isd-lifecycle"
+path = "src/bin/isd-lifecycle.rs"

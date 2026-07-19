@@ -1,0 +1,59 @@
+# Scheduled long-budget fuzzing (PDD §10.6). The per-PR
+# `fuzz-smoke` job in ci.yml replays seeds and runs a short 60s live pass on the
+# S8 targets; this workflow runs a much longer budget on ALL targets on a weekly
+# cron (and on demand), uploading any crash reproducer and the grown corpus.
+name: fuzz-nightly
+
+on:
+  schedule:
+    # Weekly, Monday 03:00 UTC. Adjust as corpus/coverage needs evolve.
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      minutes_per_target:
+        description: "Fuzzing budget per target, in minutes"
+        required: false
+        default: "10"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install cargo-fuzz --locked
+      # Seconds per target (default 600 = 10 min; dispatch input overrides).
+      - name: Compute budget
+        run: |
+          MINUTES="${{ github.event.inputs.minutes_per_target || '10' }}"
+          echo "BUDGET=$(( MINUTES * 60 ))" >> "$GITHUB_ENV"
+      # Start each target from its checked-in seeds; libFuzzer grows the working
+      # corpus under fuzz/corpus/<target>/ (git-ignored) for the run's duration.
+      # A crash (exit 77) fails the job and the artifact upload preserves the
+      # reproducer under fuzz/artifacts/<target>/.
+      - name: Fuzz all targets
+        run: |
+          for t in cap_parser card_response_parsers rapdu_unwrap scp_wrap_roundtrip scp03_kdf_props; do
+            echo "::group::$t ($BUDGET s)"
+            cargo fuzz run "$t" "$PWD/fuzz/seeds/$t" -- -max_total_time="$BUDGET"
+            echo "::endgroup::"
+          done
+      - name: Upload fuzz reproducers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-nightly-artifacts
+          path: fuzz/artifacts/
+          if-no-files-found: ignore
+      # Preserve the grown corpus so interesting inputs survive between runs
+      # (download and re-seed manually / via a future corpus-persistence step).
+      - name: Upload grown corpus
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-nightly-corpus
+          path: fuzz/corpus/
+          if-no-files-found: ignore

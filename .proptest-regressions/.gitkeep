@@ -1,0 +1,1 @@
+# proptest writes shrunk counterexamples here (PDD §10.6); committed so CI replays them.

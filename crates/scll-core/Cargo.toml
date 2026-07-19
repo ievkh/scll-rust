@@ -1,0 +1,40 @@
+[package]
+name = "scll-core"
+description = "Core of the Simple Card Lifecycle Library: transport/backend traits, GP commands, SCP02/03 state machines, CAP parser. No concrete transport or crypto (PDD §3.1)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+# no_std + alloc-free. Feature/version pins live in the workspace root so the
+# no_std posture is set once for all members:
+#   [workspace.dependencies]
+#   heapless     = { version = "0.8", default-features = false }   # 0.8 has no `zeroize` feature
+#   zeroize      = { version = "1",   default-features = false }
+#   thiserror    = { version = "2",   default-features = false }   # core::error (Rust >= 1.81)
+#   miniz_oxide  = { version = "0.8.4", default-features = false } # alloc-free DEFLATE inflate
+heapless.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true
+miniz_oxide.workspace = true
+
+[dev-dependencies]
+# Shared hex `Debug` wrapper for readable assert_eq! output (HexSlice). Pulled
+# in here so it is available once the no_std core test suite lands; runs under
+# cfg(test), where this crate is built with std.
+scll-test-util.workspace = true
+# Std, dev-only harness: MockTransport for replay/integration tests (§10.3).
+# dev-dep only, so it stays out of the no_std/production graph; the resulting
+# scll-core <-> scll-test-support dev-dependency cycle is permitted by Cargo.
+scll-test-support.workspace = true
+# Property tests (§10.4): TLV parse∘encode identity, Aid bounds, life-cycle SM,
+# SW map totality. Runs under cfg(test), where the crate is built with std.
+proptest.workspace = true
+
+[lints]
+workspace = true

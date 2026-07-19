@@ -1,0 +1,45 @@
+[package]
+name = "scll"
+description = "Facade crate for the Simple Card Lifecycle Library. Feature flags select transports and backend (PDD §3.1)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+default = ["backend-rustcrypto"]
+backend-rustcrypto = ["dep:scll-backend-rustcrypto"]
+pcsc = ["dep:scll-transport-pcsc"]
+jcsim = ["dep:scll-transport-jcsim"]
+# Host builds: turn on the backend's critical-section impl (weak dep so it only
+# applies when the rustcrypto backend is also enabled).
+std = ["scll-backend-rustcrypto?/std"]
+
+[dependencies]
+scll-core.workspace = true
+scll-backend-rustcrypto = { workspace = true, optional = true }
+scll-transport-pcsc = { workspace = true, optional = true }
+scll-transport-jcsim = { workspace = true, optional = true }
+
+[dev-dependencies]
+# `CardManager` doctests construct the shipped backend behind a small in-doctest
+# Transport, so they need three dev-only crates (none reach the no_std/production
+# graph — same posture as scll-backend-rustcrypto's dev-deps):
+#   * heapless        — the `Transport::transmit` return buffer in the doctest stub.
+#   * rand_core        — a tiny injected CSPRNG for `RustCryptoBackend::new`.
+#   * critical-section/std — the backend's key/session tables sit behind a
+#     `critical_section::Mutex`; the `no_run` open_scp example links the backend
+#     crypto path, so the `_critical_section_*` symbols must resolve under a plain
+#     `cargo test`. Enabling `std` here registers the host impl for the test build.
+heapless.workspace = true
+rand_core.workspace = true
+critical-section = { workspace = true, features = ["std"] }
+# `SCLL_JCSIM_ADDR` gate for the smoke_jcsim integration test (`std` feature).
+scll-test-util = { workspace = true, features = ["std"] }
+
+[lints]
+workspace = true

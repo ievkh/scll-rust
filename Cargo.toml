@@ -1,0 +1,117 @@
+# Virtual workspace manifest.
+# Crate layout per PDD §3.1. The PDD lists members at the top level;
+# this skeleton nests them under `crates/` (idiomatic Rust convention).
+[workspace]
+resolver = "2"
+members = [
+    "crates/scll-core",
+    "crates/scll-backend-rustcrypto",
+    "crates/scll-transport-pcsc",
+    "crates/scll-transport-jcsim",
+    "crates/scll",
+    "crates/scll-test-util",
+    "crates/scll-test-support",
+]
+# `fuzz/` is excluded from the default workspace (built via cargo-fuzz).
+exclude = ["fuzz"]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+# Bumped to 1.81: core::error::Error (error_in_core) is stable from 1.81, which
+# is what lets `thiserror` derive work under no_std (default-features = false).
+rust-version = "1.81"
+license = "MIT OR Apache-2.0"          # PDD front-matter: MIT/Apache-2.0 dual
+authors = ["Ievgen <io.github.ievkh>"]
+repository = "https://github.com/ievkh/scll"
+keywords = ["globalplatform", "javacard", "scp03", "scp02", "smartcard"]
+categories = ["cryptography", "hardware-support"]
+
+# Shared dependency versions. Concrete versions are placeholders for the
+# skeleton; pin before first release.
+#
+# no_std posture: scll-core and scll-backend-rustcrypto are no_std + alloc-free,
+# so every shared lib below is pinned `default-features = false`. The std-only
+# transport crates (pcsc/jcsim) bring their own std deps in their manifests.
+[workspace.dependencies]
+scll-core = { path = "crates/scll-core", version = "1.0.0" }
+scll-backend-rustcrypto = { path = "crates/scll-backend-rustcrypto", version = "1.0.0" }
+scll-transport-pcsc = { path = "crates/scll-transport-pcsc", version = "1.0.0" }
+scll-transport-jcsim = { path = "crates/scll-transport-jcsim", version = "1.0.0" }
+# Test-only helper crate (HexSlice, …). Used solely via `[dev-dependencies]`,
+# so it never enters a production or no_std build graph (Cargo: dev-dependencies
+# are not used when compiling a package for normal builds and are not
+# propagated to dependents).
+scll-test-util = { path = "crates/scll-test-util", version = "1.0.0" }
+# Std, dev-only test harness (MockTransport, …). Like scll-test-util, used
+# solely via `[dev-dependencies]`, so it never enters a production or no_std
+# build graph. Unlike scll-test-util it is `std` (owns scripted/recorded traces).
+scll-test-support = { path = "crates/scll-test-support", version = "1.0.0" }
+# Property-based testing (§2.4 / §10.4): TLV round-trip, Aid, life-cycle SM,
+# SW map. Dev-only (runs under cfg(test), where the crate is built with std),
+# so it never enters the no_std/production build graph.
+proptest = "1"
+
+# Fixed-capacity collections for the no_std build; `zeroize` feature gives the
+# Zeroize impls used by KeyHandle/export buffers.
+heapless = { version = "0.8", default-features = false }
+# Typed error enums (§8). v2 + default-features=false → core::error::Error (no_std).
+thiserror = { version = "2", default-features = false }
+# Key-material hygiene (§3.3). no_std by default; alloc/std impls stay off.
+# `zeroize` is capped below 1.9 as a secondary MSRV guard: 1.9.0's manifest
+# requires the unstable `edition2024` Cargo feature, which even fails to PARSE
+# on Cargo 1.81. The `msrv` CI job's MSRV-aware resolver
+# (CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=fallback) is the primary fix and
+# handles this dep-agnostically, but this cap also protects a plain
+# `cargo +1.81 build` without the resolver env, and 1.8.x is API-compatible
+# for our `Zeroize`/`Zeroizing` use (default-features off). Lift once the
+# workspace MSRV moves past a Cargo that stabilises edition2024.
+zeroize = { version = ">=1, <1.9", default-features = false }
+# Alloc-free DEFLATE inflate for compressed CAP entries (§5.4a). >= 0.8.4 avoids
+# the Rust >= 1.81 perf regression in earlier 0.8.x; no_std without alloc.
+miniz_oxide = { version = "0.8.4", default-features = false }
+
+# RustCrypto backend primitives (PDD §3.1 / §11) — all MIT/Apache-2.0 dual,
+# all no_std with default features disabled. NOT YET ENABLED: no member
+# references them while the crypto flows are `todo!()`, and RustCrypto crates
+# are version-locked through the `cipher`/`digest` traits, so pinning them early
+# risks an unresolvable set (e.g. cbc never reached 0.4 — latest stable is
+# 0.1.2 on cipher 0.4.2). The versions below are the verified compatible
+# (cipher 0.4 / digest 0.10) line. S4 (SCP03) enables `aes` + `cmac` + `cbc`
+# only; the SCP02 set (`des`/`ecb`/`sha2`/`retail-mac`) stays commented until S5.
+# Confirm/repair the set with `cargo add` from the backend crate before release.
+aes = { version = "0.8", default-features = false }
+cmac = { version = "0.7", default-features = false }
+cbc = { version = "0.1", default-features = false } # latest stable 0.1.2 (cipher ^0.4.2)
+# SCP02 (S5): DES / two-key 3DES (DESede EDE2) block ciphers. `des 0.8.1` is on
+# the same verified cipher-0.4.2 line as aes/cmac/cbc above (confirmed on
+# crates.io 2026-06), so it joins the existing trait-locked set cleanly — no
+# second `cipher` major in the graph.
+des = { version = "0.8", default-features = false }
+# NOT added (deliberate):
+#  * `ecb`        — single-/double-block 3DES-ECB is realised as CBC with a zero
+#                   IV (E(P⊕0)=E(P)), the same pattern S4 uses for AES-ECB, so no
+#                   `ecb` crate is needed.
+#  * `retail-mac` — its only stable release (0.1.0) is on cipher 0.5 / digest
+#                   0.11, which is INCOMPATIBLE with this frozen cipher-0.4 line;
+#                   the ISO/IEC 9797-1:2011 Algorithm 3 MAC is implemented in
+#                   `crypto.rs` on `des` + `cbc` instead (matches GlobalPlatformPro
+#                   `GPCrypto.mac_des_3des`).
+#  * `sha2`       — SCP02 (GPCS §E) is pure DES/3DES; no SHA is used.
+rand_core = { version = "0.6", default-features = false }
+# RNG = Fork B (resolved): the CSPRNG is injected into RustCryptoBackend<R>, so
+# the backend no longer depends on getrandom. Host callers construct their own
+# R (e.g. an OsRng); embedded callers pass a board TRNG implementing RngCore.
+# Interior mutability for the `&self` backend uses a critical-section mutex; the
+# final binary registers a critical-section impl (host: `critical-section/std`).
+critical-section = "1"
+# PC/SC transport (MIT) — std-only host crate:
+pcsc = "2"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+
+[workspace.lints.rust]
+# missing_docs = "warn"
+unsafe_code = "forbid"   # pure-Rust core; backends may relax locally

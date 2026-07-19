@@ -1,0 +1,54 @@
+[package]
+name = "scll-fuzz"
+version = "1.0.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+scll-core = { path = "../crates/scll-core" }
+# Host fuzz binary: enable `std` so a `critical-section` implementation is
+# linked (the backend's RNG/key tables live behind `critical_section::Mutex`).
+scll-backend-rustcrypto = { path = "../crates/scll-backend-rustcrypto", features = ["std"] }
+# Fixed-seed CSPRNG for deterministic, reproducible fuzz runs. rand_chacha 0.3
+# tracks rand_core ^0.6, matching the workspace pin; ChaCha20Rng is
+# RngCore + CryptoRng + Send + 'static, satisfying RustCryptoBackend::new.
+rand_chacha = "0.3"
+
+# cargo-fuzz wires each [[bin]] to fuzz_targets/<name>.rs
+[[bin]]
+name = "cap_parser"
+path = "fuzz_targets/cap_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "card_response_parsers"
+path = "fuzz_targets/card_response_parsers.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rapdu_unwrap"
+path = "fuzz_targets/rapdu_unwrap.rs"
+test = false
+doc = false
+
+# S8 hardening targets: wrap/unwrap round-trip + tamper (SCP02 + SCP03 S8/S16),
+# and SCP03 KDF/cryptogram properties across AES-128/192/256.
+[[bin]]
+name = "scp_wrap_roundtrip"
+path = "fuzz_targets/scp_wrap_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "scp03_kdf_props"
+path = "fuzz_targets/scp03_kdf_props.rs"
+test = false
+doc = false

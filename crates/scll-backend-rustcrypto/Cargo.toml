@@ -1,0 +1,66 @@
+[package]
+name = "scll-backend-rustcrypto"
+description = "Pure-Rust crypto backend for scll (shipped default). Implements KeyBackend + Scp03Backend + Scp02Backend + ExportableKeyBackend (PDD §3.3/§3.6)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+# no_std: pins set `default-features = false` in the workspace root.
+# `heapless` provides the bounded wrap/unwrap/export buffers; `critical-section`
+# guards the interior-mutable key/session table + RNG. `getrandom` is gone: the
+# CSPRNG is injected by the caller (Fork B), so this crate only needs the
+# RngCore/CryptoRng traits from `rand_core`.
+#
+# RustCrypto primitives are version-locked through the `cipher`/`digest` traits,
+# so they are added per-stage (never hand-pinned): S4 enables `aes`/`cmac`/`cbc`
+# for SCP03; SCP02's `des`/`ecb`/`sha2`/`retail-mac` arrive in S5 via `cargo add`.
+scll-core.workspace = true
+heapless.workspace = true
+critical-section.workspace = true
+zeroize.workspace = true
+rand_core.workspace = true
+# SCP03 primitives (S4): AES (ECB single-block ICV/KCV, CBC C-ENC/R-ENC),
+# AES-CMAC (PRF for the SP 800-108 KDF, cryptograms, C-MAC/R-MAC). All
+# default-features = false (no_std). SCP02's des/ecb/sha2/retail-mac land in S5.
+aes.workspace = true
+cmac.workspace = true
+# `block-padding` turns on `cipher/block-padding`, which provides the
+# `encrypt_padded_mut`/`decrypt_padded_mut` API and the `block_padding` module
+# (`NoPadding`). It is `no_std` (via `inout`); we pad/unpad ISO-7816 ourselves
+# and only use `NoPadding` here.
+cbc = { workspace = true, features = ["block-padding"] }
+# SCP02 primitives (S5): DES + two-key 3DES (DESede EDE2). Driven through the
+# same `cbc` API as AES (3DES-ECB = single-block CBC with a zero IV), so no
+# `ecb` crate is pulled. Retail MAC (ISO/IEC 9797-1:2011 Alg. 3) and 3DES-ECB
+# KCV are built on `des` + `cbc` in `crypto.rs`. default-features = false (no_std).
+des.workspace = true
+
+[features]
+# Host builds: provide a critical-section implementation. Embedded targets
+# select their own impl (usually via a HAL feature on the final binary).
+std = ["critical-section/std"]
+
+[dev-dependencies]
+# Shared hex `Debug` wrapper for readable assert_eq! output (HexSlice). Pulled
+# in here so it is available for the KAT suite; runs under cfg(test) with std.
+scll-test-util.workspace = true
+# Std, dev-only harness: MockTransport for replay/integration tests (§10.3).
+# dev-dep only, so it never reaches the no_std/production graph.
+scll-test-support.workspace = true
+# Register a host `critical-section` implementation for the KAT build (§10.6):
+# the backend's interior-mutable state sits behind `critical_section::Mutex`,
+# whose `with` needs a registered impl at link/run time. Enabling the `std`
+# impl here (dev-only, feature-unified into the cfg(test) build) lets a plain
+# `cargo test --workspace` exercise the backend without a separate `--features
+# std` invocation. Normal (non-test) builds keep critical-section impl-less and
+# `no_std`, as the final embedded binary supplies its own impl.
+critical-section = { workspace = true, features = ["std"] }
+# KATs (§10.2) also run under an explicit `cargo test -p
+# scll-backend-rustcrypto --features std` in CI.
+
+[lints]
+workspace = true

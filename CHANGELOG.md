@@ -1,0 +1,64 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
+versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+Initial consolidated state of the library (design and iteration history up to
+this point lives in the git log; the canonical design is
+[`docs/pdd.md`](docs/pdd.md), v1.0).
+
+### Library
+
+- **Five-crate workspace** (`scll-core`, `scll-backend-rustcrypto`,
+  `scll-transport-pcsc`, `scll-transport-jcsim`, `scll` facade) plus dev-only
+  test crates (`scll-test-util`, `scll-test-support`) and a `cargo-fuzz`
+  sub-workspace. `scll-core` and the RustCrypto backend are `no_std` +
+  alloc-free (fixed `heapless` capacities); MSRV 1.81.
+- **Secure channels:** SCP03 (Amendment D v1.1.2, S8 and S16 modes,
+  `i ∈ {0x00,0x10,0x20,0x30,0x60,0x70}` + S16 bit) and SCP02 (GPCS v2.3.1
+  Annex E, `i = 0x55`, incl. R-MAC at level `0x13` with the §E.3.2 EA-C-MAC
+  ICV seed), with SCP03-first automatic selection (PDD §4.3).
+- **Split backend traits** (`KeyBackend`, `Scp03Backend`, `Scp02Backend`,
+  optional `ExportableKeyBackend`) with opaque `KeyHandle`s; caller-injected
+  CSPRNG; shipped RustCrypto backend.
+- **Workflows** (PDD §5): probe, discover, `put_sd_keys` / `delete_sd_keyset`
+  (single Add-only PUT KEY + KVN-only DELETE KEY engine), `create_ssd`,
+  `load_package` (in-library CAP parsing, STORED + DEFLATE, streamed 'C4'
+  LFDB), `install_applet`, `delete_applet`, `delete_ssd`, `open_scp`,
+  applet APDU exchange, `set_card_status` / `get_card_status`,
+  `get_card_inventory` (byte-level `63 10` page chaining).
+- **Typed error surface:** `ScllError` / `WarningKind`; per-function
+  `Result<XReport, ScllError>`; table-driven SW mapping.
+- **Verified targets:** NXP JCOP 4 P71 (J3R150) over PC/SC and the Oracle
+  JCDK simulator over the apdu bridge; target quirks and their handling are
+  catalogued in PDD §10.7.
+
+### Testing & CI
+
+- Pure-layer unit tests (coverage-gated), crypto KATs cross-checked against
+  out-of-process `pycryptodome`/`pyca` oracles and reference implementations,
+  replay tests over `MockTransport`, property tests (`proptest`), and five
+  fuzz targets (CAP parser, card-response parsers, R-APDU unwrap, SCP
+  wrap round-trip, SCP03 KDF properties).
+- CI: `fmt`, `clippy` (pedantic, `-D warnings`), tests, `cargo-llvm-cov`
+  line-coverage gate (ratchet-up), `cargo-deny` license policy, MSRV 1.81
+  job, `no_std` build job (`thumbv7em-none-eabi`), fuzz smoke + scheduled
+  long-budget fuzz run.
+
+### Examples
+
+- Six example binaries (`card-info`, `card-status`, `key-tools`,
+  `workflow-free`, `ssd-lifecycle`, `isd-lifecycle`) in the detached
+  `examples/` workspace, idempotent against both targets; see
+  [`examples/README.md`](examples/README.md) for the API coverage map.
+
+### Documentation
+
+- Documentation consolidated: PDD v1.0 (`docs/pdd.md`, versionless filename)
+  is the single canonical design document; per-patch manifests and the
+  completed implementation plan were removed (history in git); example
+  documentation and the API coverage map moved to `examples/README.md`;
+  crate versions set to 1.0.0.

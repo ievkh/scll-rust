@@ -1,0 +1,23 @@
+[package]
+name = "scll-transport-pcsc"
+description = "PC/SC Transport adapter for scll (Linux/host production). Implements scll-core's Transport over the `pcsc` crate. PDD §3.1/§3.2."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+# std host crate (links libpcsclite via `pcsc`), but produces the converted
+# Transport trait's bounded heapless return types.
+scll-core.workspace = true
+heapless.workspace = true
+pcsc.workspace = true
+
+[dev-dependencies]
+# Shared hex `Debug` wrapper for readable assert_eq! output (HexSlice).
+scll-test-util.workspace = true
+
+[lints]
+workspace = true

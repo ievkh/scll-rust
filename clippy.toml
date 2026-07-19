@@ -1,0 +1,2 @@
+# Project-wide clippy thresholds. Lint levels live in [workspace.lints] (Cargo.toml).
+too-many-arguments-threshold = 9

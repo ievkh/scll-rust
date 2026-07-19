@@ -1,0 +1,24 @@
+[package]
+name = "scll-test-support"
+description = "Std, dev-only test harness for the scll workspace: MockTransport (scripted C-APDU/R-APDU exchanges implementing the real scll_core::Transport trait, so replay tests drive the production code path), replay runner and fixtures. Pulled in only as a dev-dependency; never a normal/runtime or no_std dependency."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+# Internal helper: never published to crates.io.
+publish = false
+
+[dependencies]
+# Unlike the no_std `scll-test-util` (HexSlice only), this crate is `std` and
+# owns buffers, so it can hold scripted/recorded APDU traces. It depends on
+# `scll-core` for the real `Transport` trait + capacity limits, so `MockTransport`
+# implements the production trait (no parallel mock interface) — PDD §10.3.
+scll-core.workspace = true
+# `Transport::transmit` returns `heapless::Vec<u8, RAPDU_MAX>`; the mock builds
+# and returns one. Pinned `default-features = false` at the workspace root.
+heapless.workspace = true
+
+[lints]
+workspace = true
