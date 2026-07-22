@@ -134,12 +134,15 @@ Both **skip silently** when the variables are unset, so a plain
 ```sh
 cd examples
 export SCLL_TRANSPORT=jcsim          # or rely on SCLL_JCSIM_ADDR being the only one set
-export SCLL_CAP=/path/to/scpapplet.cap   # lifecycle demos only
+export SCLL_CAP=/path/to/scpapplet.cap   # lifecycle demos only — see below
 ./run.sh card-info                   # read-only
 ./run.sh isd-lifecycle               # load + install + keyset rotation + teardown
 ```
 
 Full binary list and environment table: [`examples/README.md`](../examples/README.md).
+Building the CAP that `SCLL_CAP` points at (prerequisites, the reference
+`jc305-gp2.2` artifact, AIDs, the `HELLO` command):
+[`examples/README.md` § Target applet](../examples/README.md#target-applet).
 Set `SCLL_APDU_TRACE=1` to hex-dump every C-APDU/R-APDU to stderr.
 
 ## 8. Getting an applet onto the simulator
@@ -149,7 +152,10 @@ Two mutually exclusive routes:
 **(a) Via `scll` — recommended.** `load_package` + `install_applet`, as driven
 by the `ssd-lifecycle` and `isd-lifecycle` example binaries. This exercises
 `scll`'s own CAP parsing, `'C4'` LOAD block chaining and INSTALL commands, and
-the demos clean up after themselves.
+the demos clean up after themselves. The reference applet and the steps to
+build its CAP are documented in
+[`examples/README.md` § Target applet](../examples/README.md#target-applet);
+only `SCLL_CAP` has to be set.
 
 **(b) Via the bridge at startup.** Set the deployment lists in `scripts/env.sh`
 (semicolon-separated, same order in every list):
@@ -281,6 +287,9 @@ rotation, applet APDU exchange — see [`examples/`](../examples/) and
   [`docs/protocol.md`](https://github.com/ievkh/javacard-simulator-apdu-bridge/blob/main/docs/protocol.md),
   [`docs/architecture.md`](https://github.com/ievkh/javacard-simulator-apdu-bridge/blob/main/docs/architecture.md)
 - `scll` design document — [`docs/pdd.md`](pdd.md), §3.2 (Transport), §5 (workflows), §10.7 (target quirks)
-- Example binaries and environment table — [`examples/README.md`](../examples/README.md)
+- Example binaries, environment table, and applet CAP build —
+  [`examples/README.md`](../examples/README.md)
+- Reference cooperative SCP03 applet —
+  [`ievkh/javacard-scp03-cooperative-applet`](https://github.com/ievkh/javacard-scp03-cooperative-applet)
 - GlobalPlatform Card Specification v2.3.1 and Amendment D v1.1.2 —
   <https://globalplatform.org/specs-library/>

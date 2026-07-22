@@ -19,6 +19,94 @@ binaries under `src/bin/`.
 Security Domain. The custom `HELLO` command (`80F000000548656C6C6F`) is taken
 from that repo's `scripts/20-send-hello.sh`.
 
+**The two lifecycle binaries (`ssd-lifecycle`, `isd-lifecycle`) do not run
+without its CAP file.** Build it once, point `SCLL_CAP` at it, and the demos
+handle everything else — they parse the CAP, LOAD it and INSTALL the instance
+themselves.
+
+### 1. Build the CAP
+
+Prerequisites (all three are needed by the applet's `build.sh`):
+
+| Component | Note |
+|---|---|
+| **JDK 8** | the Oracle CAP converter runs on JDK 8 only; `build.sh` aborts on any other version. Set `JAVA8_HOME`. |
+| **Oracle Java Card Classic SDK 3.0.5** (`jc305u4_kit`) | supplies `converter.bat`, `lib/api_classic.jar`, `api_export_files`. Mirror: [`martinpaljak/oracle_javacard_sdks`](https://github.com/martinpaljak/oracle_javacard_sdks) |
+| **GP Card API export files + jar, v1.5** | the `gp2.2` matrix row. Source: [`OpenJavaCard/globalplatform-exports`](https://github.com/OpenJavaCard/globalplatform-exports) |
+
+```sh
+git clone https://github.com/ievkh/javacard-scp03-cooperative-applet
+cd javacard-scp03-cooperative-applet
+cp env.example.sh env.sh
+$EDITOR env.sh      # JAVA8_HOME, JC_HOMES[], JC_VERSIONS[], GP_EXPORT_PATHS[], GP_API_JARS[]
+./build.sh          # any matrix row whose paths are missing is skipped, not fatal
+```
+
+`build.sh` iterates a Java Card SDK × GP API matrix and writes one directory
+per combination. The **reference artifact for these demos** is the JC 3.0.5 ×
+GP API v1.5 row — the same one the applet repo's own
+[`scripts/10-install.sh`](https://github.com/ievkh/javacard-scp03-cooperative-applet/blob/main/scripts/10-install.sh)
+deploys with gppro:
+
+```
+out/jc305-gp2.2/io/github/ievkh/scpapplet/javacard/scpapplet.cap
+```
+
+Other rows build fine but are unverified against `scll`.
+
+### 2. Point `scll` at it
+
+```sh
+export SCLL_CAP="$PWD/out/jc305-gp2.2/io/github/ievkh/scpapplet/javacard/scpapplet.cap"
+```
+
+That is the **only** required applet-side variable. `scll` reads the package
+(ELF) AID from `Header.cap` and the applet class (module) AID from `Applet.cap`
+(`CapConfig::from_env`, `src/lib.rs`), so none of the applet repo's `env.sh`
+AIDs are needed at run time:
+
+| Item | Value | Where `scll` gets it |
+|---|---|---|
+| Package (ELF) AID | `F00000006203010C01` | parsed from the CAP |
+| Applet class (module) AID | `F00000006203010C0101` | parsed from the CAP |
+| Applet instance AID | `F00000006203010C0101` | defaults to the module AID; override with `SCLL_APPLET_AID` |
+| Application command | `80 F0 00 00 05 48656C6C6F` | `HELLO_CAPDU` constant |
+| Expected response data | `Hello World` | printed by `print_transmit` |
+
+Install parameters are empty on purpose: the applet's `install()` ignores its
+`bArray`, so both demos pass empty `applet_install_params` /
+`system_install_params` (a bare `'C9' 00`, GPCS v2.3.1 §11.5.2.3.7).
+
+> `SCLL_SSD_AID` defaults to `A0000001510000 0F`, **not** the applet repo's
+> `SSD_AID_GP=F00000006203010C02`. The P71 requires the SSD instance AID to sit
+> in the ISD's namespace; the applet repo's value is used only by its own gppro
+> scripts.
+
+### 3. Run
+
+```sh
+cd <scll>/examples
+./run.sh isd-lifecycle          # load + install + ISD keyset rotation + HELLO + teardown
+./run.sh ssd-lifecycle          # same lifecycle under a freshly created SSD
+```
+
+Both should print `Hello World` from the applet channels. Add
+`SCLL_APDU_TRACE=1` to see every C-APDU/R-APDU. For the simulator target, set
+the bridge up first — [`docs/jcsim-testing.md`](../docs/jcsim-testing.md) §3–§6
+— and let `scll` do the loading (that guide's §8 route (a)); do **not** also
+pre-deploy the same instance AID through the bridge.
+
+### Why a cooperative applet
+
+The applet forwards INITIALIZE UPDATE, EXTERNAL AUTHENTICATE and the SCP02
+BEGIN/END R-MAC SESSION commands to `org.globalplatform.SecureChannel`
+`processSecurity()`, and unwraps/wraps application APDUs with the same object
+(GPCS v2.3.1 §7.1.2; GP Card API v1.6 §4.1.7). All SCP cryptography therefore
+belongs to the associated Security Domain — which is exactly what `scll`
+exercises when it opens an applet channel with `ScpTargetKind::ApplicationAid`
+and the **SD's** keys, and why `SCLL_APPLET_LEVEL=33` (C-MAC/C-DEC + R-MAC/R-ENC)
+is meaningful on that channel.
+
 ## Binaries
 
 | Binary | Demonstrates | Channels |
@@ -52,7 +140,8 @@ SCLL_TRANSPORT=jcsim ./run.sh
 
 `run.sh <binary>` runs one binary (`cargo run --release --bin <binary>`);
 `run.sh` / `run.sh all` runs them all. `SCLL_CAP` is required only by the two
-lifecycle binaries. Requires a Rust toolchain ≥ 1.81 (the SDK's MSRV).
+lifecycle binaries — see [Target applet](#target-applet) for how to build it.
+Requires a Rust toolchain ≥ 1.81 (the SDK's MSRV).
 
 ## Environment
 
@@ -66,7 +155,7 @@ exactly one of `SCLL_PCSC` / `SCLL_JCSIM_ADDR` is set.
 | `SCLL_PCSC_KEY_ENC/_MAC/_DEK` | ISD keys for PC/SC (hex, 16/24/32 bytes, equal length) |
 | `SCLL_JCSIM_ADDR` | jcsim bridge `host:port` |
 | `SCLL_JCSIM_KEY_ENC/_MAC/_DEK` | ISD keys for jcsim (sim GP default `4041…4F`) |
-| `SCLL_CAP` | path to the applet CAP file (lifecycle binaries only) |
+| `SCLL_CAP` | path to the applet CAP file (lifecycle binaries only) — see [Target applet](#target-applet) |
 | `SCLL_SSD_AID` | SSD instance AID override (hex) |
 | `SCLL_APPLET_AID` | applet instance AID override (hex; default = CAP module AID) |
 | `SCLL_ISD_KVN` | ISD keyset version for the management channel (default `0x00`) |

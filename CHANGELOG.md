@@ -6,6 +6,32 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-07-23
+
+### Added
+- `examples/README.md` § **Target applet** now documents how to obtain the CAP
+  file the two lifecycle binaries require
+  ([`ievkh/javacard-scp03-cooperative-applet`](https://github.com/ievkh/javacard-scp03-cooperative-applet)):
+  build prerequisites (JDK 8, Oracle Java Card Classic SDK 3.0.5, GP Card API
+  v1.5 exports), the `env.sh` + `build.sh` steps, the reference artifact
+  `out/jc305-gp2.2/…/scpapplet.cap` (the JC 3.0.5 × GP API v1.5 matrix row that
+  the applet repo's own `scripts/10-install.sh` deploys), the `SCLL_CAP` export,
+  an AID / `HELLO`-command table noting that `scll` parses the package and
+  module AIDs out of the CAP itself, the empty-install-parameters rationale
+  (GPCS v2.3.1 §11.5.2.3.7), and a short note on why the cooperative model
+  (GPCS §7.1.2, GP Card API v1.6 §4.1.7) is what the applet channels exercise.
+
+### Documentation
+- `docs/jcsim-testing.md` §7, §8(a) and §11 cross-link the new CAP-build section
+  instead of leaving `SCLL_CAP` as an unexplained path.
+
+### Fixed
+- `examples/src/bin/ssd-lifecycle.rs`: the `DEFAULT_SSD_AID` doc comment claimed
+  the value came from the applet repo's `env.example.sh`. It does not — that
+  file defines `SSD_AID_GP=F00000006203010C02`, while the demo deliberately uses
+  an ISD-namespace AID because the JCOP 4 P71 rejects `create_ssd` otherwise.
+  Comment corrected; no behavioural change.
+
 ## [1.0.3] - 2026-07-22
 
 ### Added

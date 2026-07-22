@@ -45,9 +45,11 @@ use scll_examples::{
     Triple, HELLO_CAPDU, KS1_DEK, KS1_ENC, KS1_MAC, KS2_DEK, KS2_ENC, KS2_MAC, KVN_1, KVN_2,
 };
 
-/// Default SSD instance AID (from the applet's env.example.sh). Override with
-/// SCLL_SSD_AID. NOTE: NXP JCOP 4 P71 may require the SSD AID to sit under the
-/// ISD's namespace — set SCLL_SSD_AID accordingly if create_ssd is rejected.
+/// Default SSD instance AID. Chosen to sit under the ISD's namespace
+/// (`A0000001 5100 00`), which the NXP JCOP 4 P71 requires — create_ssd is
+/// rejected otherwise. This deliberately differs from the applet repo's
+/// `SSD_AID_GP=F00000006203010C02`, which is used only by that repo's own
+/// gppro scripts. Override with SCLL_SSD_AID.
 const DEFAULT_SSD_AID: &[u8] = &[0xA0, 0x00, 0x00, 0x01, 0x51, 0x00, 0x00, 0x0F];
 
 // GlobalPlatform Security-Domain package/module used to instantiate the SSD.
