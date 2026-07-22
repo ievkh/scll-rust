@@ -122,6 +122,13 @@ tools, no_std-style free workflow, SSD and ISD lifecycles) live in the detached
 [`examples/`](examples/) workspace — see [`examples/README.md`](examples/README.md)
 for usage and the API coverage map.
 
+## Testing against the Oracle Java Card simulator
+
+The library, the examples, and downstream applications can all be run against
+the Oracle JCDK simulator via
+[`javacard-simulator-apdu-bridge`](https://github.com/ievkh/javacard-simulator-apdu-bridge).
+Setup and first test run: [`docs/jcsim-testing.md`](docs/jcsim-testing.md).
+
 ## Building
 
 ```sh

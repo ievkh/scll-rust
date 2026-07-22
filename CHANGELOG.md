@@ -6,6 +6,19 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-07-22
+
+### Added
+- New guide [`docs/jcsim-testing.md`](docs/jcsim-testing.md) — zero-to-first-test
+  setup for running the library, the example binaries, and third-party
+  applications against the Oracle Java Card simulator through
+  [`javacard-simulator-apdu-bridge`](https://github.com/ievkh/javacard-simulator-apdu-bridge):
+  simulator socket port, bridge build/configure/run, `cargo test-jcsim`
+  invocation, the two applet-deployment routes (library `load_package` vs the
+  bridge's AMService startup deployment), the setup's limits (single client, no
+  card reset, PDD §10.7 simulator deviations), and a minimal downstream crate
+  using `scll` with `features = ["jcsim", "std"]`. Linked from `README.md`.
+
 ## [1.0.2] - 2026-07-22
 
 ### Added
