@@ -6,6 +6,19 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-07-22
+
+### Added
+- README **Quick start (host-only)**: a representative example that runs
+  `workflow::discover_card` with **no reader and no simulator**. A small stub
+  `Transport` replays real card-shaped TLVs — a SELECT FCI with the ISD AID
+  (tag `'84'`), Card Recognition Data (tag `'66'`) advertising SCP03 (i=0x70),
+  and a Key Information Template (tag `'00E0'`) reporting one keyset at KVN 0x30 —
+  so discovery resolves AID, SCP variant, and keysets from the card's own bytes;
+  remaining optional objects answer `6A88` and surface as warnings (PDD §5.2).
+  The facade pulls the README in via `#![doc = include_str!("../../../README.md")]`,
+  so the block also runs as a doctest under `cargo test` (single source).
+
 ## [1.0.1] - 2026-07-19
 
 ### Fixed
