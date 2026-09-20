@@ -1,6 +1,6 @@
 # scll
 
-Facade crate for the **Simple Card Lifecycle Library** — off-card GlobalPlatform
+Facade crate for the **Simple Card Lifecycle Library** — off-card `GlobalPlatform`
 card management in Rust (SCP02/SCP03 secure channels, SSD/applet lifecycle,
 CAP loading, key provisioning).
 
