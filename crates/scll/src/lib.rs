@@ -1,7 +1,7 @@
 //! The repository README (rendered first) carries the host-only Quick-start
 //! example; `include_str!` makes that same fenced block a compiled doctest,
 //! so the README snippet cannot silently rot (single source, no duplication).
-#![doc = include_str!("../../../README.md")]
+#![doc = include_str!("../README.md")]
 //!
 //! # scll — facade crate
 //!
